@@ -10,8 +10,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 # ==============================================================================
 # 1. CREDENCIAIS E CONFIGURAÇÕES
 # ==============================================================================
-TOKEN = os.environ.get("BOT_TOKEN", "8822381506:AAEFA9KscOVs_xIGOV70RJeuLPggQNojYXg")
-CHAT_ID = os.environ.get("CHAT_ID", "-1003966783268")
+TOKEN = os.environ.get("BOT_TOKEN", "8738063689:AAFz8wY1zaE3BixUupl0RBQ9exiy5l8260U")
+CHAT_ID = os.environ.get("CHAT_ID", "-1003915020968")
 
 bot = telebot.TeleBot(TOKEN)
 
