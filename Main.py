@@ -18,7 +18,7 @@ bot = telebot.TeleBot(TOKEN)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Links Globais
-LINK_BINANCE = "https://www.binance.com"
+LINK_BINANCE = "https://www.binance.com/register?ref=GHOSTTRADER3&utm_medium=app_share_link"
 LINK_WALLET = "https://wallet.telegram.org"
 LINK_TELEGRAM = "https://t.me"
 LINK_AIRDROP = "https://binance.com"
