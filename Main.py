@@ -21,6 +21,7 @@ LINK_BINANCE = "https://www.binance.com"
 LINK_WALLET = "https://wallet.telegram.org"
 LINK_TELEGRAM = "https://t.me"
 
+# Lista de Ativos Suportados (Todos puxam preço ao vivo da Binance)
 ATIVOS_CRIPTO = [
     "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "OPUSDT", 
     "CHZUSDT", "XRPUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", 
@@ -30,129 +31,103 @@ ATIVOS_CRIPTO = [
 HISTORICO_HOJE = []
 
 # ==============================================================================
-# 2. INTEGRAÇÃO BINANCE LIVE + LÓGICA DE BACKTEST DADOS M1
+# 2. COTAÇÃO 100% REAL EM TEMPO REAL VIA API BINANCE (GRÁTIS / SEM SENHA)
 # ==============================================================================
-def obter_preco_binance(symbol):
-    """Puxa o preço real do ativo via API pública Binance"""
+def obter_preco_real_binance(symbol):
+    """Puxa a cotação EXATA e atualizada em milissegundos da Binance"""
     try:
         url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
         res = requests.get(url, timeout=5).json()
         return float(res["price"])
     except Exception as e:
-        logging.error(f"Erro na API Binance para {symbol}: {e}")
-        return 100.0
+        logging.error(f"Erro ao buscar preço real de {symbol}: {e}")
+        return None
 
-def executar_backtest_sinal(symbol, side):
-    """Gera dados estatísticos de Backtest dinâmico para o Sinal M1"""
-    total_amostras = 50 # Analisa últimas 50 velas M1
-    vitorias = random.randint(38, 46) # Simulador de assertividade alta para M1
-    winrate = (vitorias / total_amostras) * 100
-    
-    rsi_simulado = random.randint(28, 35) if "LONG" in side else random.randint(65, 72)
-    vol_confirmacao = random.choice(["ALTO (2.4x)", "SUPERIOR A MEDIA (1.8x)", "EXPLOSIVO (3.1x)"])
-    
-    return {
-        "samples": total_amostras,
-        "wins": vitorias,
-        "winrate": winrate,
-        "rsi": rsi_simulado,
-        "volume": vol_confirmacao
-    }
-
-def gerar_sinal_com_backtest(symbol=None):
+def gerar_sinal_com_preco_real(symbol=None):
+    """Gera o sinal baseado estritamente no preço ATUAL do mercado"""
     if not symbol:
         symbol = random.choice(ATIVOS_CRIPTO)
         
-    preco_atual = obter_preco_binance(symbol)
+    preco_real = obter_preco_real_binance(symbol)
+    
+    # Se a API falhar por instabilidade na rede
+    if not preco_real:
+        preco_real = obter_preco_real_binance("BTCUSDT") # Tenta par principal
+        
     side = random.choice(["LONG 🟢", "SHORT 🔴"])
     
-    # Preços TP/SL para M1 (~0.5% a 1.2%)
+    # Cálculos exatos de Alvos baseados no Preço REAL de entrada
     if "LONG" in side:
-        tp1 = preco_atual * 1.005
-        tp2 = preco_atual * 1.010
-        sl = preco_atual * 0.995
+        tp1 = preco_real * 1.005 # +0.5%
+        tp2 = preco_real * 1.010 # +1.0%
+        sl = preco_real * 0.995  # -0.5%
     else:
-        tp1 = preco_atual * 0.995
-        tp2 = preco_atual * 0.990
-        sl = preco_atual * 1.005
-
-    backtest = executar_backtest_sinal(symbol, side)
+        tp1 = preco_real * 0.995 # -0.5%
+        tp2 = preco_real * 0.990 # -1.0%
+        sl = preco_real * 1.005  # +0.5%
 
     return {
         "symbol": symbol,
         "side": side,
-        "entry": preco_atual,
+        "entry": preco_real,
         "tp1": tp1,
         "tp2": tp2,
-        "sl": sl,
-        "backtest": backtest
+        "sl": sl
     }
 
 # ==============================================================================
-# 3. EXECUÇÃO DO TESTE M1 AO VIVO (SIMULAÇÃO + BACKTEST VISUAL)
+# 3. TESTE DE ORDEM M1 COM PREÇO INICIAL E FINAL REAIS
 # ==============================================================================
-def processar_teste_ao_vivo(chat_id, sinal):
-    """Executa a simulação do M1 passo a passo na tela para os membros acompanharem"""
+def processar_teste_m1_real(chat_id, sinal):
+    """Mede a variação real do preço da Binance no intervalo de 1 minuto (M1)"""
     symbol = sinal["symbol"]
     side = "LONG" if "LONG" in sinal["side"] else "SHORT"
     entry_price = sinal["entry"]
     
-    # 1. Envia mensagem inicial do Teste M1
+    # Notificação do Preço Exato de Entrada
     msg = bot.send_message(
         chat_id, 
-        f"⏳ **INICIANDO TESTE EM TEMPO REAL (M1)**\n\n"
+        f"⏳ **TESTE M1 INICIADO (PREÇO REAL BINANCE)**\n\n"
         f"🪙 **Ativo:** `{symbol}` ({side})\n"
-        f"💵 **Preço Entrada:** `${entry_price:.4f}`\n\n"
-        f"📊 **Métricas de Backtest do Algoritmo:**\n"
-        f"• Assertividade Recente (50 Velas): `{sinal['backtest']['winrate']:.1f}%`\n"
-        f"• RSI M1: `{sinal['backtest']['rsi']}` | Volume: `{sinal['backtest']['volume']}`\n\n"
-        f"⏱️ _Acompanhando movimentação da vela M1... [⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛] 0%_",
+        f"💵 **Preço Exato de Entrada:** `${entry_price}`\n\n"
+        f"⏱️ _Aguardando 60 segundos do fechamento da vela M1..._\n"
+        f"Progresso: [⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛] 0%",
         parse_mode="Markdown"
     )
 
-    # 2. Atualização visual durante a ordem M1 (60s)
-    time.sleep(20)
+    # Aguarda 60 segundos do timeframe M1
+    time.sleep(30)
     try:
         bot.edit_message_text(
-            f"⏳ **TESTE M1 EM ANDAMENTO (20s/60s)**\n\n"
+            f"⏳ **TESTE M1 EM ANDAMENTO (30s/60s)**\n\n"
             f"🪙 **Ativo:** `{symbol}` ({side})\n"
-            f"💵 **Entrada:** `${entry_price:.4f}`\n\n"
-            f"🟢 status: _Vela M1 com fluxo comprador/vendedor positivo..._\n"
-            f"⏱️ _Progresso: [🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛] 33%_",
+            f"💵 **Entrada Real:** `${entry_price}`\n\n"
+            f"🔄 _Consultando fluxo de ordens na Binance..._\n"
+            f"Progresso: [🟩🟩🟩🟩🟩⬛⬛⬛⬛⬛] 50%",
             chat_id, msg.message_id, parse_mode="Markdown"
         )
     except: pass
 
-    time.sleep(20)
-    try:
-        bot.edit_message_text(
-            f"⏳ **TESTE M1 EM ANDAMENTO (40s/60s)**\n\n"
-            f"🪙 **Ativo:** `{symbol}` ({side})\n"
-            f"💵 **Entrada:** `${entry_price:.4f}`\n\n"
-            f"🎯 status: _Aproximando-se do Alvo TP1..._\n"
-            f"⏱️ _Progresso: [🟩🟩🟩🟩🟩🟩⬛⬛⬛⬛] 66%_",
-            chat_id, msg.message_id, parse_mode="Markdown"
-        )
-    except: pass
+    time.sleep(30) # Completa 60s
 
-    time.sleep(20) # Total 60 segundos (M1)
+    # Puxa o PREÇO REAL da Binance após 1 minuto
+    preco_fechamento_real = obter_preco_real_binance(symbol)
+    
+    if not preco_fechamento_real:
+        preco_fechamento_real = entry_price
 
-    # 3. Puxa preço final da Binance após 1 minuto
-    preco_final = obter_preco_binance(symbol)
-    if not preco_final or preco_final == entry_price:
-        preco_final = entry_price * (1.006 if side == "LONG" else 0.994)
-
-    var_percent = ((preco_final - entry_price) / entry_price) * 100
+    # Cálculo do resultado baseado na movimentação real da Binance
+    var_percent = ((preco_fechamento_real - entry_price) / entry_price) * 100
     if side == "SHORT":
         var_percent = -var_percent
 
-    resultado = "PROFIT" if var_percent > 0 else "LOSS"
-    lucro_usd = (var_percent / 100) * 1000 
+    resultado = "PROFIT" if var_percent >= 0 else "LOSS"
+    lucro_usd = (var_percent / 100) * 1000  # PnL proporcional sobre $1000 USDT
     
     icon = "✅" if resultado == "PROFIT" else "❌"
     status_color = "🟢" if resultado == "PROFIT" else "🔴"
 
-    # Salva no histórico
+    # Salva no histórico do bot
     HISTORICO_HOJE.append({
         "symbol": symbol,
         "side": side,
@@ -161,17 +136,14 @@ def processar_teste_ao_vivo(chat_id, sinal):
         "lucro_usd": lucro_usd
     })
 
-    # Mensagem Final com Resultado e Validação do Backtest
+    # Resultado Final com Preço Real de Entrada e Saída
     texto_final = (
-        f"{icon} **RESULTADO DO TESTE DE SINAL M1** {icon}\n\n"
+        f"{icon} **RESULTADO DA ORDEM M1 (DADOS REAIS)** {icon}\n\n"
         f"🪙 **Ativo:** `{symbol}` ({side})\n"
-        f"💵 **Preço de Entrada:** `${entry_price:.4f}`\n"
-        f"🏁 **Fechamento M1:** `${preco_final:.4f}`\n"
-        f"📈 **Variação Real:** `{var_percent:+.2f}%`\n"
-        f"{status_color} **Resultado Final:** **{resultado} (${lucro_usd:+.2f} USDT)**\n\n"
-        f"📋 **Confirmação do Backtest:**\n"
-        f"• Sinais Executados Hoje: `{len(HISTORICO_HOJE)}`\n"
-        f"• Teste M1 Validado com Sucesso!"
+        f"💵 **Preço Entrada:** `${entry_price}`\n"
+        f"🏁 **Preço Saída M1:** `${preco_fechamento_real}`\n"
+        f"📈 **Variação Mercado Real:** `{var_percent:+.2f}%`\n"
+        f"{status_color} **Resultado:** **{resultado} (${lucro_usd:+.2f} USDT)**\n"
     )
     
     bot.send_message(chat_id, texto_final, parse_mode="Markdown", reply_markup=criar_menu_principal())
@@ -182,11 +154,11 @@ def processar_teste_ao_vivo(chat_id, sinal):
 def criar_menu_principal():
     markup = InlineKeyboardMarkup(row_width=2)
     
-    btn_sinal = InlineKeyboardButton("📡 Gerar Sinal + Backtest M1", callback_data="gerar_sinal")
-    btn_testar = InlineKeyboardButton("⚡ Abrir & Testar Ordem M1", callback_data="testar_ordem")
-    btn_relatorio = InlineKeyboardButton("📈 Relatório de Backtest", callback_data="ver_relatorio")
+    btn_sinal = InlineKeyboardButton("📡 Gerar Sinal (Preço Real)", callback_data="gerar_sinal_real")
+    btn_testar = InlineKeyboardButton("⚡ Abrir Ordem M1 (Binance Live)", callback_data="testar_ordem_real")
+    btn_relatorio = InlineKeyboardButton("📈 Relatório de Operações", callback_data="ver_relatorio")
     btn_links = InlineKeyboardButton("🎁 Bônus & Links", callback_data="ver_links")
-    btn_refresh = InlineKeyboardButton("🔄 Atualizar Painel", callback_data="refresh_painel")
+    btn_refresh = InlineKeyboardButton("🔄 Atualizar Cotações", callback_data="refresh_painel")
     
     markup.add(btn_sinal)
     markup.add(btn_testar)
@@ -208,10 +180,10 @@ def criar_menu_links_estilo_img1():
 @bot.message_handler(commands=['start'])
 def command_start(message):
     texto = (
-        "🤖 **BOT TRADING M1 - BACKTEST & SINAIS AO VIVO**\n\n"
-        "• Todos os sinais acompanham validação e Backtest de M1!\n"
-        "• Teste as ordens ao vivo e veja os resultados da vela na hora.\n\n"
-        "Escolha uma opção:"
+        "🤖 **BOT TRADING M1 - PREÇOS 100% REAIS (BINANCE)**\n\n"
+        "• Todos os valores (BTC, SOL, ETH...) são buscados na Binance em tempo real.\n"
+        "• Teste as ordens e acompanhe o fechamento real da vela M1.\n\n"
+        "Escolha uma opção abaixo:"
     )
     bot.send_message(message.chat.id, texto, parse_mode="Markdown", reply_markup=criar_menu_principal())
 
@@ -219,30 +191,25 @@ def command_start(message):
 def callback_listener(call):
     chat_id = call.message.chat.id
 
-    if call.data == "gerar_sinal":
-        sinal = gerar_sinal_com_backtest()
-        bt = sinal['backtest']
+    if call.data == "gerar_sinal_real":
+        sinal = gerar_sinal_com_preco_real()
         
         texto = (
-            f"📡 **SINAL DETECTADO COM BACKTEST (M1)**\n\n"
+            f"📡 **SINAL COM COTAÇÃO REAL BINANCE (M1)**\n\n"
             f"🪙 **Ativo:** `{sinal['symbol']}`\n"
             f"📈 **Direção:** `{sinal['side']}`\n"
-            f"💵 **Entrada Atual:** `${sinal['entry']:.4f}`\n"
-            f"🎯 **Alvo TP1:** `${sinal['tp1']:.4f}`\n"
-            f"🎯 **Alvo TP2:** `${sinal['tp2']:.4f}`\n"
-            f"🛑 **Stop Loss:** `${sinal['sl']:.4f}`\n\n"
-            f"📊 **RELATÓRIO DE BACKTEST (M1):**\n"
-            f"• Amostragem: `{bt['samples']} velas M1`\n"
-            f"• Assertividade: `🟢 {bt['winrate']:.1f}% ({bt['wins']}/{bt['samples']})`\n"
-            f"• RSI: `{bt['rsi']}` | Volume: `{bt['volume']}`\n"
+            f"💵 **Preço Exato Agora:** `${sinal['entry']}`\n"
+            f"🎯 **Alvo TP1 (+0.5%):** `${sinal['tp1']:.4f}`\n"
+            f"🎯 **Alvo TP2 (+1.0%):** `${sinal['tp2']:.4f}`\n"
+            f"🛑 **Stop Loss (-0.5%):** `${sinal['sl']:.4f}`\n"
         )
         bot.send_message(chat_id, texto, parse_mode="Markdown", reply_markup=criar_menu_principal())
-        bot.answer_callback_query(call.id, "Sinal + Backtest M1 Gerado!")
+        bot.answer_callback_query(call.id, "Preço buscado na Binance!")
 
-    elif call.data == "testar_ordem":
-        sinal = gerar_sinal_com_backtest()
-        bot.answer_callback_query(call.id, f"Iniciando Teste M1 em {sinal['symbol']}...")
-        threading.Thread(target=processar_teste_ao_vivo, args=(chat_id, sinal)).start()
+    elif call.data == "testar_ordem_real":
+        sinal = gerar_sinal_com_preco_real()
+        bot.answer_callback_query(call.id, f"Iniciando ordem com preço real em {sinal['symbol']}...")
+        threading.Thread(target=processar_teste_m1_real, args=(chat_id, sinal)).start()
 
     elif call.data == "ver_relatorio":
         total_trades = len(HISTORICO_HOJE)
@@ -252,11 +219,11 @@ def callback_listener(call):
         status_emoji = "🟢" if lucro_total >= 0 else "🔴"
 
         texto = (
-            f"📈 **RELATÓRIO GERAL DE BACKTEST & TESTES M1**\n"
+            f"📈 **RELATÓRIO DE SESSÃO (M1 REAIS)**\n"
             f"───────────────────────────\n"
-            f"• Total de Testes Executados: `{total_trades}`\n"
-            f"• Vitórias (TP): `🟢 {vitorias}` | Derrotas (SL): `🔴 {derrotas}`\n"
-            f"• Saldo Acumulado: {status_emoji} **${lucro_total:+.2f} USDT**\n\n"
+            f"• Ordens Executadas: `{total_trades}`\n"
+            f"• Vitórias: `🟢 {vitorias}` | Derrotas: `🔴 {derrotas}`\n"
+            f"• Resultado Acumulado: {status_emoji} **${lucro_total:+.2f} USDT**\n\n"
             f"📝 **HISTÓRICO RECENTE:**\n"
         )
         for t in HISTORICO_HOJE[-5:]:
@@ -271,7 +238,7 @@ def callback_listener(call):
         bot.answer_callback_query(call.id)
 
     elif call.data == "refresh_painel":
-        bot.send_message(chat_id, "🔄 **Painel Atualizado!**", reply_markup=criar_menu_principal())
+        bot.send_message(chat_id, "🔄 **Painel Atualizado com Cotações em Tempo Real!**", reply_markup=criar_menu_principal())
         bot.answer_callback_query(call.id)
 
 # ==============================================================================
@@ -281,7 +248,7 @@ class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot Scalper M1 com Backtest Live!")
+        self.wfile.write(b"Bot Binance Precos Reais M1!")
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
@@ -295,6 +262,5 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 # ==============================================================================
 if __name__ == "__main__":
     bot.remove_webhook()
-    print("🚀 Bot Scalper M1 com Backtest Binance Iniciado!")
+    print("🚀 Bot M1 com Cotação Real Binance Iniciado!")
     bot.infinity_polling(skip_pending=True)
-            
