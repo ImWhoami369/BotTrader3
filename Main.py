@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 LINK_BINANCE = "https://www.binance.com/register?ref=GHOSTTRADER3&utm_medium=app_share_link"
 LINK_WALLET = "https://wallet.telegram.org"
 LINK_TELEGRAM = "https://t.me"
-LINK_AIRDROP = "https://binance.com"
+LINK_AIRDROP = "https://www.bybit.com/invite?ref=G2R0VD&medium=referral&utm_campaign=evergreen"
 
 # --- LISTA EXPANDIDA DE ATIVOS NAS POSIÇÕES ABERTAS ---
 POSICOES_ABERTAS = [
