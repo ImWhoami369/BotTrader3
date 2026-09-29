@@ -12,7 +12,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 # ==============================================================================
 # 1. CONFIGURAÇÕES BÁSICAS
 # ==============================================================================
-TOKEN = os.environ.get("BOT_TOKEN", "8738063689:AAFz8wY1zaE3BixUupl0RBQ9exiy5l8260U")
+TOKEN = os.environ.get("BOT_TOKEN", "8738063689:AAGkeS2h97tQpkK-KPDsyqYyOIEtoo147K0")
 bot = telebot.TeleBot(TOKEN)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
