@@ -36,7 +36,7 @@ HISTORICO_HOJE = []
 def obter_preco_real_binance(symbol):
     """Puxa a cotação EXATA e atualizada em milissegundos da Binance"""
     try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+        url = "https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
         res = requests.get(url, timeout=5).json()
         return float(res["price"])
     except Exception as e:
